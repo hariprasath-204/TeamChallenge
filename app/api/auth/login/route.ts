@@ -29,6 +29,49 @@ export async function POST(req: NextRequest) {
       team = TeamStore.getByEmail(teamIdOrEmail);
     }
 
+    // Fallback: Query Firestore if not found in local cache
+    if (!team) {
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAXmk6rA6YGkx_612GzgsQlhmBNijoAEnU';
+        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'teamchallenge-c1166';
+        const cleanId = teamIdOrEmail.toUpperCase().trim();
+        const firestoreRes = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/registrations/${cleanId}?key=${apiKey}`
+        );
+        if (firestoreRes.ok) {
+          const doc = await firestoreRes.json();
+          if (doc.fields) {
+            const f = doc.fields;
+            team = {
+              id: cleanId,
+              teamName: f.teamName?.stringValue || cleanId,
+              college: f.college?.stringValue || 'ANJAC',
+              department: f.department?.stringValue || 'Computer Applications',
+              leaderName: f.leaderName?.stringValue || 'Leader',
+              leaderEmail: f.leaderEmail?.stringValue || '',
+              leaderPhone: f.leaderPhone?.stringValue || '',
+              leaderIndex: parseInt(f.leaderIndex?.integerValue || '0', 10),
+              paymentStatus: (f.paymentStatus?.stringValue as 'verified') || 'verified',
+              isCheckedIn: true,
+              isBlocked: false,
+              lotNumber: f.lotNumber?.stringValue || '001',
+              preferredPassword: f.preferredPassword?.stringValue || 'codathon@2027',
+              members: (f.members?.arrayValue?.values || []).map((m: { mapValue: { fields: Record<string, { stringValue?: string }> } }) => ({
+                name: m.mapValue.fields.name?.stringValue || '',
+                rollNo: m.mapValue.fields.rollNo?.stringValue || '',
+                email: m.mapValue.fields.email?.stringValue || '',
+                phone: m.mapValue.fields.phone?.stringValue || '',
+                photoUrl: m.mapValue.fields.photoUrl?.stringValue || '',
+              })) as [any, any, any],
+            };
+            TeamStore.add(team);
+          }
+        }
+      } catch {
+        // Fallback checked
+      }
+    }
+
     if (!team) {
       return NextResponse.json(
         {

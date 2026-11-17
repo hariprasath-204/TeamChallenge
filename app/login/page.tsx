@@ -194,8 +194,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Footer Admin Link */}
-        <div className="text-center mt-6 text-xs text-gray-500">
+        {/* Footer Links */}
+        <div className="flex items-center justify-between mt-6 text-xs text-gray-500">
+          <a href="/register" className="text-gold-bright hover:underline transition">
+            New Team? Register Members →
+          </a>
           <a href="/admin/login" className="hover:text-gold-bright transition">
             Administrator Portal Access →
           </a>

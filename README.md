@@ -109,5 +109,3 @@ node scripts/test-all-systems.js
 - **URL:** `/admin/login`
 - **Admin Email:** `admin@anjac.edu`
 - **Master Security Key:** `anjac@admin2027`
-
-# TeamChallenge

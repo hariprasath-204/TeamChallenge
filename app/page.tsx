@@ -18,6 +18,12 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-4 text-xs font-cinzel">
           <Link
+            href="/register"
+            className="text-gold-bright hover:text-white flex items-center gap-1.5 transition font-semibold"
+          >
+            <Users className="w-3.5 h-3.5 text-gold-primary" /> Register Team
+          </Link>
+          <Link
             href="/admin/login"
             className="text-gray-400 hover:text-gold-bright flex items-center gap-1.5 transition"
           >

@@ -193,6 +193,10 @@ if (!global.__codathon_teams) {
 const teamsMap = global.__codathon_teams;
 
 export const TeamStore = {
+  add(team: TeamRegistration) {
+    teamsMap.set(team.id.toUpperCase().trim(), team);
+  },
+
   getAll(): TeamRegistration[] {
     return Array.from(teamsMap.values());
   },
