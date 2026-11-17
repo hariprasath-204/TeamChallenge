@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { TeamStore } from '@/lib/teamStore';
 import { ExamStore } from '@/lib/examStore';
 import { FaceVerificationStore } from '@/lib/faceStore';
@@ -41,4 +41,23 @@ export async function GET() {
       teams: enrichedTeams,
     },
   });
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const teamId = searchParams.get('teamId');
+
+    if (teamId) {
+      const deleted = TeamStore.delete(teamId);
+      return NextResponse.json({ success: true, deleted, message: `Team ${teamId} removed.` });
+    }
+
+    // Clear all teams if requested
+    TeamStore.clearAll();
+    return NextResponse.json({ success: true, message: 'All dummy teams removed successfully.' });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Delete failed';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 }

@@ -121,7 +121,7 @@ export default function LoginPage() {
                   required
                   value={teamIdOrEmail}
                   onChange={(e) => setTeamIdOrEmail(e.target.value)}
-                  placeholder="e.g. CDT-001-ZX0L or softtech.admin.st.1@gmail.com"
+                  placeholder="Enter your registered Team ID or Leader Email"
                   className="w-full pl-9 pr-3 py-2.5 rounded bg-[#07090e] border border-gold-border/30 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-gold-primary transition"
                 />
               </div>
@@ -166,32 +166,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials helper */}
-          <div className="mt-6 pt-4 border-t border-gold-border/20 text-center text-[11px] text-gray-400">
-            <span>Registered Team ID: </span>
-            <button
-              type="button"
-              onClick={() => {
-                setTeamIdOrEmail('CDT-001-ZX0L');
-                setPassword('codathon@2027');
-              }}
-              className="text-gold-bright font-mono underline hover:text-white"
-            >
-              CDT-001-ZX0L
-            </button>
-            <span className="mx-1.5">•</span>
-            <button
-              type="button"
-              onClick={() => {
-                setTeamIdOrEmail('CDT-007-GOLD');
-                setPassword('codathon@2027');
-              }}
-              className="text-gold-bright font-mono underline hover:text-white"
-            >
-              CDT-007-GOLD
-            </button>
-          </div>
         </div>
 
         {/* Footer Links */}

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (action === 'START') {
+    if (action === 'START' || action === 'START_EXAM') {
       const state = ExamStore.startExam(teamId);
       return NextResponse.json({ success: true, data: state });
     }

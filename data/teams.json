@@ -1,0 +1,44 @@
+[
+  {
+    "id": "CDT-518-8C1D",
+    "teamName": "hi",
+    "college": "Ayya Nadar Janaki Ammal College",
+    "department": "Department of Computer Applications",
+    "members": [
+      {
+        "name": "hari",
+        "rollNo": "26pcA1",
+        "email": "hari@gamil.com",
+        "phone": "9876543210",
+        "college": "Ayya Nadar Janaki Ammal College",
+        "photoUrl": ""
+      },
+      {
+        "name": "hhhhhh",
+        "rollNo": "h87nnj",
+        "email": "hhhhhh@gmail.com",
+        "phone": "9876543211",
+        "college": "Ayya Nadar Janaki Ammal College",
+        "photoUrl": ""
+      },
+      {
+        "name": "ghjghwjsh",
+        "rollNo": "jskjdiu7",
+        "email": "ghjghwjsh@gmail.com",
+        "phone": "9876543212",
+        "college": "Ayya Nadar Janaki Ammal College",
+        "photoUrl": ""
+      }
+    ],
+    "leaderIndex": 0,
+    "leaderName": "hari",
+    "leaderEmail": "hari@gamil.com",
+    "leaderPhone": "9876543210",
+    "paymentStatus": "verified",
+    "isCheckedIn": true,
+    "isBlocked": false,
+    "lotNumber": "518",
+    "preferredPassword": "codathon@2027",
+    "registeredAt": "2026-11-17T20:50:00.000Z"
+  }
+]

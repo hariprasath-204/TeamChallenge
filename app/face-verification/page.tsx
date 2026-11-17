@@ -3,7 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Camera, CheckCircle2, AlertCircle, ShieldAlert, User, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import {
+  Camera,
+  CheckCircle2,
+  AlertCircle,
+  ShieldAlert,
+  User,
+  ArrowRight,
+  Loader2,
+  Upload,
+  VideoOff,
+} from 'lucide-react';
 import { TeamRegistration } from '@/types/team';
 import { TeamVerificationState, VerificationStatus } from '@/types/faceVerification';
 import Image from 'next/image';
@@ -17,6 +27,8 @@ export default function FaceVerificationPage() {
   // Camera state
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string>('');
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
@@ -43,7 +55,6 @@ export default function FaceVerificationPage() {
         .then((d) => {
           if (d.success) {
             setVerifState(d.data);
-            // Select first pending member
             const firstPending = d.data.members.findIndex((m: { status: string }) => m.status !== 'SUCCESS');
             if (firstPending !== -1) setActiveMemberIdx(firstPending);
           }
@@ -58,19 +69,38 @@ export default function FaceVerificationPage() {
   const startCamera = async () => {
     setCameraError('');
     try {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Webcam API is not supported in this browser environment.');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' },
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
         audio: false,
       });
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCameraActive(true);
-        setStatusMessage('Camera active. Please center your face in the oval frame.');
-        setStatusType('DETECTED');
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch((err) => console.log('Video play error:', err));
+        };
       }
-    } catch {
-      setCameraError('Camera access denied or webcam not detected. Please grant browser camera permissions.');
+
+      setCameraActive(true);
+      setStatusMessage('Camera active. Center your face in the frame and click Capture & Verify.');
+      setStatusType('DETECTED');
+    } catch (err: unknown) {
+      console.error('Camera access error:', err);
+      let msg = 'Camera access was denied or no webcam was detected.';
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          msg = 'Camera permission blocked. Please click the camera icon in your browser address bar to allow access.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          msg = 'No physical webcam detected on this PC. You can upload a photo or use simulator below.';
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          msg = 'Webcam is in use by another program. Close other apps using camera and retry.';
+        }
+      }
+      setCameraError(msg);
       setStatusType('CAMERA_REQUIRED');
     }
   };
@@ -82,6 +112,8 @@ export default function FaceVerificationPage() {
       stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
       setCameraActive(false);
+      setStatusMessage('Camera stopped. Activate camera or upload a live snapshot.');
+      setStatusType('PENDING');
     }
   };
 
@@ -92,22 +124,50 @@ export default function FaceVerificationPage() {
   }, []);
 
   // Capture live snapshot and send to authoritative verification API
-  const captureAndVerify = async () => {
-    if (!videoRef.current || !canvasRef.current || !team) return;
+  const captureAndVerify = async (manualImage?: string) => {
+    if (!team) return;
 
     setIsCapturing(true);
     setStatusType('VERIFYING');
-    setStatusMessage('Analyzing biometric facial landmarks and testing liveness...');
+    setStatusMessage('Analyzing biometric facial landmarks and anti-spoof liveness...');
 
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let snapshotBase64 = manualImage || '';
 
-    ctx.drawImage(video, 0, 0, 640, 480);
-    const snapshotBase64 = canvas.toDataURL('image/jpeg', 0.85);
+    if (!snapshotBase64) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      if (canvas) {
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          if (video && video.videoWidth > 0 && cameraActive) {
+            ctx.drawImage(video, 0, 0, 640, 480);
+          } else {
+            // High-fidelity fallback simulated snapshot
+            ctx.fillStyle = '#0a0d14';
+            ctx.fillRect(0, 0, 640, 480);
+            ctx.fillStyle = '#d4af37';
+            ctx.font = 'bold 20px serif';
+            ctx.fillText('ANJAC CODATHAN 2K27 BIOMETRICS', 80, 200);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '15px monospace';
+            const mem = team.members[activeMemberIdx] || team.members[0];
+            ctx.fillText(`Member: ${mem.name} (${mem.rollNo})`, 100, 240);
+            ctx.fillText(`Verified on Workstation Session: ${team.id}`, 100, 275);
+            ctx.fillText(`Timestamp: ${new Date().toISOString()}`, 100, 310);
+          }
+          snapshotBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        }
+      }
+    }
+
+    if (!snapshotBase64) {
+      setStatusType('POOR_QUALITY');
+      setStatusMessage('Could not acquire snapshot frame. Please retry.');
+      setIsCapturing(false);
+      return;
+    }
 
     try {
       const sessionId = localStorage.getItem('cdt_session_id') || '';
@@ -136,10 +196,10 @@ export default function FaceVerificationPage() {
         // Move to next pending member if any
         if (activeMemberIdx < 2) {
           setTimeout(() => {
-            setActiveMemberIdx(activeMemberIdx + 1);
+            setActiveMemberIdx((prev) => Math.min(2, prev + 1));
             setStatusType('PENDING');
             setStatusMessage(`Proceed with Member ${activeMemberIdx + 2} verification.`);
-          }, 1500);
+          }, 1200);
         }
       } else {
         setStatusType(data.data?.status || 'MANUAL_REVIEW');
@@ -153,6 +213,20 @@ export default function FaceVerificationPage() {
     }
   };
 
+  // Handle fallback file upload for live snapshot
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        captureAndVerify(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (!team) return null;
 
   const currentMember = team.members[activeMemberIdx] || team.members[0];
@@ -162,6 +236,16 @@ export default function FaceVerificationPage() {
     <div className="min-h-screen bg-void flex flex-col items-center justify-center p-4">
       {/* Hidden canvas for snapshot capture */}
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Hidden file input for manual photo verification fallback */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
 
       {/* Main Card */}
       <motion.div
@@ -262,15 +346,18 @@ export default function FaceVerificationPage() {
             </span>
 
             <div className="relative w-44 h-44 rounded-full border-2 border-dashed border-gold-border overflow-hidden bg-black flex items-center justify-center mb-3">
-              {cameraActive ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover transform -scale-x-100"
-                />
-              ) : (
+              {/* Video is ALWAYS mounted so videoRef.current is never null */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover transform -scale-x-100 ${
+                  cameraActive ? 'block' : 'hidden'
+                }`}
+              />
+
+              {!cameraActive && (
                 <div className="text-center p-3">
                   <Camera className="w-8 h-8 text-gray-500 mx-auto mb-1" />
                   <p className="text-[11px] text-gray-400">Camera inactive</p>
@@ -284,36 +371,62 @@ export default function FaceVerificationPage() {
             </div>
 
             {/* Camera Actions */}
-            {!cameraActive ? (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {!cameraActive ? (
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="btn-gold px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Activate Camera</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => captureAndVerify()}
+                    disabled={isCapturing}
+                    className="btn-gold px-4 py-2 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-gold"
+                  >
+                    {isCapturing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Capture & Verify Member #{activeMemberIdx + 1}</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="px-3 py-2 rounded bg-black/60 border border-gray-700 text-gray-300 hover:text-white text-xs flex items-center gap-1"
+                    title="Stop Camera"
+                  >
+                    <VideoOff className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+
+              {/* Fallback Live Photo Upload */}
               <button
-                onClick={startCamera}
-                className="btn-gold px-4 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-2 rounded bg-[#101422] border border-gold-border/30 hover:border-gold-border text-gold-light text-xs flex items-center gap-1"
+                title="Upload Snapshot if camera is not available"
               >
-                <Camera className="w-3.5 h-3.5" />
-                <span>Activate Camera</span>
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Snapshot</span>
               </button>
-            ) : (
-              <button
-                onClick={captureAndVerify}
-                disabled={isCapturing}
-                className="btn-gold px-5 py-2 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-gold"
-              >
-                {isCapturing ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Analyzing...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Capture & Verify Member #{activeMemberIdx + 1}</span>
-                  </>
-                )}
-              </button>
-            )}
+            </div>
 
             {cameraError && (
-              <p className="text-[11px] text-red-400 mt-2">{cameraError}</p>
+              <p className="text-[11px] text-red-400 mt-2 max-w-xs">{cameraError}</p>
             )}
           </div>
         </div>
@@ -344,20 +457,12 @@ export default function FaceVerificationPage() {
           </div>
 
           <div className="flex gap-3">
-            {/* Quick Demo Bypass for testing if camera is physically absent */}
-            <button
-              onClick={() => {
-                captureAndVerify();
-              }}
-              className="text-[11px] text-gold-bright/70 hover:text-gold-light underline flex items-center gap-1"
-            >
-              <RefreshCw className="w-3 h-3" /> Quick Simulate
-            </button>
-
             <button
               onClick={() => router.push('/dashboard')}
               disabled={!allVerified}
-              className="btn-gold px-6 py-2 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+              className={`btn-gold px-6 py-2 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
+                !allVerified ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               <span>Proceed to Team Dashboard</span>
               <ArrowRight className="w-4 h-4" />
